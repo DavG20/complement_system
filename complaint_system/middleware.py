@@ -1,4 +1,4 @@
-from complements.schema import schema as complements_schema
+from complaints.schema import schema as complements_schema
 from app_user.schema import schema as app_user_schema
 
 
@@ -7,7 +7,7 @@ class MultiSchemaMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if "/complements/graphql/" in request.path:
+        if "/complaints/graphql/" in request.path:
             schema = complements_schema
         elif "/app_users/graphql/" in request.path:
             schema = app_user_schema

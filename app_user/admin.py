@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from complements.models import Complement
+from complaints.models import Complaint
 
 from .models import AppUser
 

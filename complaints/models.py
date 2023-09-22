@@ -2,7 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 
 
-class Complement(models.Model):
+class Complaint(models.Model):
     STATUS_CHOICES = (
         ("pending", "Pending"),
         ("reviewed", "Reviewed"),

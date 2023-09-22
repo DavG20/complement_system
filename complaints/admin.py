@@ -1,7 +1,7 @@
 from django.contrib import admin
 
-from .models import Complement
+from .models import Complaint
 
 # Register your models here.
 
-admin.site.register(Complement)
+admin.site.register(Complaint)

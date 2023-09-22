@@ -20,7 +20,7 @@ ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
     "django.contrib.admin",
-    "complements.apps.ComplementsConfig",
+    "complaints.apps.ComplaintsConfig",
     "app_user.apps.AppUserConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -39,13 +39,11 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # "complement_system.middleware.MultiSchemaMiddleware",
 ]
 GRAPHENE = {
-    "SCHEMA": "app_user.schema.schema",
+    "SCHEMA": "complaints.schema.schema",
     "MIDDLEWARE": [
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
-        # "complement_system.middleware.MultiSchemaMiddleware",
     ],
 }
 AUTHENTICATION_BACKENDS = [
@@ -54,7 +52,7 @@ AUTHENTICATION_BACKENDS = [
 ]
 
 
-ROOT_URLCONF = "complement_system.urls"
+ROOT_URLCONF = "complaint_system.urls"
 
 TEMPLATES = [
     {
@@ -72,7 +70,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "complement_system.wsgi.application"
+WSGI_APPLICATION = "complaint_system.wsgi.application"
 
 
 # Database
@@ -128,4 +126,3 @@ STATIC_URL = "static/"
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
