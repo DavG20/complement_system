@@ -5,7 +5,6 @@ from graphene import Mutation
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from graphql_jwt.decorators import superuser_required
-from app_user.schema import LoginUser, LogoutUser, RegisterUser
 
 
 from complaints.models import Complaint
@@ -18,7 +17,6 @@ class ComplaintType(DjangoObjectType):
 
 class ComplaintInputType(InputObjectType):
     content = graphene.String()
-    status = graphene.String()
 
 
 class ComplaintUpdateInputTypeByUser(InputObjectType):
@@ -33,41 +31,38 @@ class CreateComplaint(Mutation):
     class Arguments:
         input_data = ComplaintInputType()
 
-    Complaint = graphene.Field(ComplaintType)
+    complaint = graphene.Field(ComplaintType)
 
     def mutate(self, info, input_data):
         user = info.context.user
         if user.is_anonymous:
-            raise Exception("You must be logged in to create a Complaint.")
-
-        Complaint = Complaint(user=user, **input_data)
-        Complaint.save()
-        return CreateComplaint(Complaint=Complaint)
+            raise Exception("You must be logged in to create a complaint.")
+        if user.is_superuser:
+            raise Exception("admin can't create a complaint.")
+        complaint = Complaint(user=user, **input_data)
+        complaint.save()
+        return CreateComplaint(complaint=complaint)
 
 
 class UpdateComplaintByUser(Mutation):
     class Arguments:
-        Complaint_id = graphene.Int()
         input_data = ComplaintUpdateInputTypeByUser()
+        input_id = graphene.Int()
 
-    Complaint = graphene.Field(ComplaintType)
+    complaint = graphene.Field(ComplaintType)
 
-    @login_required
-    def mutate(self, info, Complaint_id, input_data):
+    def mutate(self, info, input_id, input_data):
         user = info.context.user
         if user.is_anonymous:
             raise Exception("You must be logged in to update a Complaint.")
 
         try:
-            Complaint = Complaint.objects.get(id=Complaint_id, user=user)
+            complaint = Complaint.objects.get(id=input_id, user=user)
         except Complaint.DoesNotExist:
-            raise Exception("Complaint not found.")
-
-        for attr, value in input_data.items():
-            setattr(Complaint, attr, value)
-
-        Complaint.save()
-        return UpdateComplaintByUser(Complaint=Complaint)
+            raise Exception("complaint not found.")
+        complaint.content = input_data.content
+        complaint.save()
+        return UpdateComplaintByUser(complaint=complaint)
 
 
 class UpdateComplaintByAdmin(Mutation):
@@ -77,7 +72,6 @@ class UpdateComplaintByAdmin(Mutation):
 
     Complaint = graphene.Field(ComplaintType)
 
-    @login_required
     @superuser_required
     def mutate(self, info, Complaint_id, input_data):
         user = info.context.user
@@ -104,12 +98,13 @@ class DeleteComplaint(Mutation):
 
     def mutate(self, info, Complaint_id):
         user = info.context.user
+        complaint = None
         if user.is_anonymous:
-            raise Exception("You must be logged in to delete a Complaint.")
+            raise Exception("You must be logged in to delete a complaint.")
 
         try:
-            Complaint = Complaint.objects.get(id=Complaint_id, user=user)
-            Complaint.delete()
+            complaint = Complaint.objects.get(id=Complaint_id, user=user)
+            complaint.delete()
             return DeleteComplaint(success=True)
         except Complaint.DoesNotExist:
             raise Exception("Complaint not found.")
@@ -138,9 +133,6 @@ class Mutation(graphene.ObjectType):
     update_Complaintbyuser = UpdateComplaintByUser.Field()
     update_Complaintbyadmin = UpdateComplaintByAdmin.Field()
     delete_Complaint = DeleteComplaint.Field()
-    user_login = LoginUser.Field()
-    user_register = RegisterUser.Field()
-    user_logout = LogoutUser.Field()
 
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

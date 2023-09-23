@@ -2,86 +2,78 @@ import graphene
 from graphene_django.types import DjangoObjectType
 from graphql_jwt.decorators import login_required
 from graphql_jwt.shortcuts import get_token
-from django.contrib.auth import authenticate, login, logout
-from .models import AppUser
+from django.contrib.auth import authenticate
+from .models import profile
+
+
+from django.contrib.auth import get_user_model
 
 # from complements.schema import schema
 
 
 class AppUserType(DjangoObjectType):
     class Meta:
-        model = AppUser
+        model = get_user_model()
 
 
-# class RegisterUser(graphene.Mutation):
-#     class Arguments:
-#         email = graphene.String(required=True)
-#         password = graphene.String(required=True)
-#         first_name = graphene.String()
-#         last_name = graphene.String()
-
-#     user = graphene.Field(AppUserType)
-#     token = graphene.String()
-
-#     def mutate(self, info, email, password, first_name=None, last_name=None):
-#         # Create a new user with the provided information
-#         user = AppUser.objects.create_user(
-#             email=email, password=password, first_name=first_name, last_name=last_name
-#         )
-#         # Authenticate the user
-#         user = authenticate(email=email, password=password)
-#         if not user:
-#             # Login the user and generate a token
-#             login(info.context, user)
-#             token = get_token(user)
-#             return RegisterUser(user=user, token=token)
-#         else:
-#             raise Exception("User creation failed", user)
+class Profile(DjangoObjectType):
+    class Meta:
+        model = profile
 
 
 class RegisterUser(graphene.Mutation):
-    class Arguments:
-        email = graphene.String(required=True)
-        password = graphene.String(required=True)
-        first_name = graphene.String()
-        last_name = graphene.String()
-
     user = graphene.Field(AppUserType)
+    profile = graphene.Field(Profile)
     token = graphene.String()
 
-    def mutate(self, info, email, password, first_name=None, last_name=None):
-        # check email is correct
-        user = AppUser.objects.create_user(
-            email=email, password=password, first_name=first_name, last_name=last_name
+    class Arguments:
+        username = graphene.String(required=True)
+        password = graphene.String(required=True)
+        email = graphene.String(required=True)
+        role = graphene.String(required=False)
+
+    def mutate(self, info, username, password, email, role=None):
+        user = get_user_model()(
+            username=username,
+            email=email,
+            is_staff=True,
         )
+        user.set_password(password)
+        user.save()
 
-        user = authenticate(request=info.context, username=email, password=password)
-        if user is not None:
-            user.backend = "graphql_jwt.backends.JSONWebTokenBackend"
+        profile_obj = profile.objects.get(user=user.id)
+        token = get_token(user)
 
-            login(info.context, user)
-            token = get_token(user)
-            return RegisterUser(user=user, token=token)
-        else:
-            raise Exception("User creation failed", user)
+        return RegisterUser(
+            user=user,
+            profile=profile_obj,
+            token=token,
+        )
 
 
 class LoginUser(graphene.Mutation):
-    class Arguments:
-        email = graphene.String(required=True)
-        password = graphene.String(required=True)
-
     user = graphene.Field(AppUserType)
+    profile = graphene.Field(Profile)
     token = graphene.String()
 
-    def mutate(self, info, email, password):
-        user = authenticate(username=email, password=password)
-        if user:
-            # No need to call 'login' here; 'graphql_jwt' handles token generation.
-            token = get_token(user)
-            return LoginUser(user=user, token=token)
-        else:
+    class Arguments:
+        username = graphene.String(required=True)
+        password = graphene.String(required=True)
+
+    def mutate(self, info, username, password):
+        user = authenticate(username=username, password=password)
+
+        if user is None:
             raise Exception("Invalid credentials")
+
+        profile_obj = profile.objects.get(user=user)
+        token = get_token(user)
+
+        return LoginUser(
+            user=user,
+            profile=profile_obj,
+            token=token,
+        )
 
 
 class LogoutUser(graphene.Mutation):
@@ -98,10 +90,32 @@ class LogoutUser(graphene.Mutation):
             raise Exception("User not authenticated")
 
 
+class Query(graphene.ObjectType):
+    whoami = graphene.Field(AppUserType)
+    users = graphene.List(AppUserType)
+
+    def resolve_whoami(self, info):
+        user = info.context.user
+        # Check to to ensure you're signed-in to see yourself
+        if user.is_anonymous:
+            raise Exception("Authentication Failure: Your must be signed in")
+        return user
+
+    def resolve_users(self, info):
+        user = info.context.user
+        print(user)
+        # Check to ensure user is a 'manager' to see all users
+        if user.is_anonymous:
+            raise Exception("Authentication Failure: Your must be signed in")
+        if user.profile.role != "manager":
+            raise Exception("Authentication Failure: Must be Manager")
+        return get_user_model().objects.all()
+
+
 class Mutation(graphene.ObjectType):
     register_user = RegisterUser.Field()
     login_user = LoginUser.Field()
     logout_user = LogoutUser.Field()
 
 
-schema = graphene.Schema(mutation=Mutation)
+schema = graphene.Schema(query=Query, mutation=Mutation)

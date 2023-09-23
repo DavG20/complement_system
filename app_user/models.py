@@ -1,54 +1,34 @@
-from django.contrib.auth.models import (
-    AbstractBaseUser,
-    BaseUserManager,
-    PermissionsMixin,
-)
 from django.db import models
+from django.contrib.auth.models import User
+from django.db.models.signals import post_save
+from django.dispatch import receiver
 
 
-class AppUserManager(BaseUserManager):
-    def create_user(self, email, password=None, **extra_fields):
-        if not email:
-            raise ValueError("The Email field must be set")
-        email = self.normalize_email(email)
-        user = self.model(email=email, **extra_fields)
-        user.set_password(password)
-        user.save(using=self._db)
-        return user
-
-    def create_superuser(self, email, password=None, **extra_fields):
-        extra_fields.setdefault("is_staff", True)
-        extra_fields.setdefault("is_superuser", True)
-
-        if extra_fields.get("is_staff") is not True:
-            raise ValueError("Superuser must have is_staff=True.")
-        if extra_fields.get("is_superuser") is not True:
-            raise ValueError("Superuser must have is_superuser=True.")
-
-        return self.create_user(email, password, **extra_fields)
+# Create your models here.
+active_roles = (("user", "user"), ("manager", "manager"))
 
 
-class AppUser(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=30)
-    last_name = models.CharField(max_length=30)
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
-    date_joined = models.DateTimeField(auto_now_add=True)
+class profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role = models.CharField(max_length=120, choices=active_roles, default="user")
 
-    objects = AppUserManager()
 
-    USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["first_name", "last_name"]
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    if created:
+        role = getattr(instance, "role", "user")
 
-    # Add related_name attributes to avoid clashes
-    groups = models.ManyToManyField(
-        "auth.Group",
-        blank=True,
-        related_name="app_users",  # Use a unique related_name
-    )
-    user_permissions = models.ManyToManyField(
-        "auth.Permission",
-        blank=True,
-        related_name="app_users_permissions",  # Use a unique related_name
-    )
+        # Check if the user is an admin
+        if instance.is_staff and instance.is_superuser:
+            role = "admin"
+
+        _ = profile.objects.create(user=instance, role=role)
+
+
+@receiver(post_save, sender=User)
+def save_user_profile(sender, instance, **kwargs):
+    try:
+        Profile = instance.profile
+        Profile.save()
+    except profile.DoesNotExist:
+        pass
