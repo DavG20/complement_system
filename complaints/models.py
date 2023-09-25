@@ -11,9 +11,8 @@ class Complaint(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     content = models.TextField()
-    status = models.CharField(
-        max_length=10, choices=STATUS_CHOICES, default="pending"
-    )  # Set default to 'pending'
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default="pending")
+    detail_answer = models.TextField(null=True, blank=True)
     answereddby = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

@@ -6,6 +6,8 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from graphql_jwt.decorators import superuser_required
 
+from django.db import IntegrityError
+
 
 from complaints.models import Complaint
 
@@ -25,6 +27,7 @@ class ComplaintUpdateInputTypeByUser(InputObjectType):
 
 class ComplaintUpdateInputTypeByAdmin(InputObjectType):
     status = graphene.String()
+    detail_answer = graphene.String()
 
 
 class CreateComplaint(Mutation):
@@ -52,6 +55,8 @@ class UpdateComplaintByUser(Mutation):
     complaint = graphene.Field(ComplaintType)
 
     def mutate(self, info, input_id, input_data):
+        complaint = None
+
         user = info.context.user
         if user.is_anonymous:
             raise Exception("You must be logged in to update a Complaint.")
@@ -70,24 +75,36 @@ class UpdateComplaintByAdmin(Mutation):
         Complaint_id = graphene.Int()
         input_data = ComplaintUpdateInputTypeByAdmin()
 
-    Complaint = graphene.Field(ComplaintType)
+    complaint = graphene.Field(ComplaintType)
 
     @superuser_required
     def mutate(self, info, Complaint_id, input_data):
         user = info.context.user
+        complaint = None
+
         if user.is_anonymous:
             raise Exception("You must be logged in to update a Complaint.")
 
         try:
-            Complaint = Complaint.objects.get(id=Complaint_id, user=user)
+            complaint = Complaint.objects.get(id=Complaint_id, user=user)
         except Complaint.DoesNotExist:
             raise Exception("Complaint not found.")
 
-        for attr, value in input_data.items():
-            setattr(Complaint, attr, value)
+        new_status = input_data.get("status").lower()
 
-        Complaint.save()
-        return UpdateComplaintByAdmin(Complaint=Complaint)
+        allowed_statuses = ["pending", "reviewed", "solved"]
+
+        if new_status not in allowed_statuses:
+            raise Exception("Invalid status. Allowed statuses .")
+        complaint.answereddby = user
+        complaint.status = new_status
+
+        try:
+            complaint.save()
+        except IntegrityError:
+            raise Exception("Failed to update the complaint status.")
+
+        return UpdateComplaintByAdmin(complaint=complaint)
 
 
 class DeleteComplaint(Mutation):
