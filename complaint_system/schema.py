@@ -1,13 +1,16 @@
 import graphene
-from app_user.schema import Query as AppUserQuery, Mutation as AppUserMutation
-from complaints.schema import Query as ComplaintQuery, Mutation as ComplaintMutation
+
+import app_user.schema
+import complaints.schema 
+import complaints.schema_relay
 
 
-class Query(AppUserQuery, ComplaintQuery, graphene.ObjectType):
+
+class Query(app_user.schema.Query, complaints.schema.Query,complaints.schema_relay.RelayQuery, graphene.ObjectType):
     pass
 
 
-class Mutation(AppUserMutation, ComplaintMutation, graphene.ObjectType):
+class Mutation(app_user.schema.Mutation, complaints.schema.Mutation, graphene.ObjectType):
     pass
 
 

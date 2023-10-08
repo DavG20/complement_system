@@ -78,7 +78,7 @@ WSGI_APPLICATION = "complaint_system.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "complaint_system_db",
+        "NAME": "complaint",
         "USER": "postgres",
         "PASSWORD": "dav627438",
         "HOST": "127.0.0.1",

@@ -1,3 +1,4 @@
+import datetime
 import graphene
 from graphene_django.types import DjangoObjectType
 from graphql_jwt.decorators import login_required
@@ -83,8 +84,7 @@ class LogoutUser(graphene.Mutation):
     def mutate(self, info):
         user = info.context.user
         if user.is_authenticated:
-            # Invalidate the JWT token
-            info.context.token = None
+            info.context.user.token.delete()
             return LogoutUser(success=True)
         else:
             raise Exception("User not authenticated")
@@ -96,7 +96,6 @@ class Query(graphene.ObjectType):
 
     def resolve_whoami(self, info):
         user = info.context.user
-        # Check to to ensure you're signed-in to see yourself
         if user.is_anonymous:
             raise Exception("Authentication Failure: Your must be signed in")
         return user

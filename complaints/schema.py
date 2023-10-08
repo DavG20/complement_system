@@ -3,7 +3,6 @@ from graphene_django.types import DjangoObjectType
 from graphene import InputObjectType
 from graphene import Mutation
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
 from graphql_jwt.decorators import superuser_required
 
 from django.db import IntegrityError
@@ -15,6 +14,7 @@ from complaints.models import Complaint
 class ComplaintType(DjangoObjectType):
     class Meta:
         model = Complaint
+        fields = ("id", "content", "status", "detail_answer", "answereddby")
 
 
 class ComplaintInputType(InputObjectType):
@@ -59,7 +59,7 @@ class UpdateComplaintByUser(Mutation):
 
         user = info.context.user
         if user.is_anonymous:
-            raise Exception("You must be logged in to update a Complaint.")
+            raise Exception("You must be logged in to update a complaint.")
 
         try:
             complaint = Complaint.objects.get(id=input_id, user=user)
@@ -141,9 +141,11 @@ class Query(graphene.ObjectType):
 
     def resolve_Complaints_by_user(self, info):
         user = info.context.user
-        if user:
-            return Complaint.objects.filter(user=user)
-
+        if user.is_anonymous:
+            raise Exception("You must be logged in to view Complaints.")
+        
+        return Complaint.objects.filter(user=user)
+        
 
 class Mutation(graphene.ObjectType):
     create_Complaint = CreateComplaint.Field()
